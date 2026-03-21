@@ -17,6 +17,7 @@
   }, {});
 
   var NUMBER_POOL = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"];
+  var MAX_ATTEMPTS = 3;
 
   function buildPermutations(items, length) {
     var results = [];
@@ -467,6 +468,102 @@
     );
   }
 
+  function attemptsLabel(remaining) {
+    if (remaining <= 0) {
+      return "Plus aucun essai disponible.";
+    }
+
+    return (
+      remaining +
+      " " +
+      (remaining === 1 ? "essai restant" : "essais restants") +
+      "."
+    );
+  }
+
+  function formatGuessInline(puzzle, guess) {
+    if (puzzle.mode === "numbers") {
+      return guess.join("");
+    }
+
+    return guess
+      .map(function (colorId) {
+        return COLOR_BY_ID[colorId].label;
+      })
+      .join(" / ");
+  }
+
+  function formatItemsList(puzzle, items) {
+    var labels = items.map(function (item) {
+      return puzzle.mode === "numbers" ? item : COLOR_BY_ID[item].label;
+    });
+
+    if (!labels.length) {
+      return "aucun";
+    }
+
+    if (labels.length === 1) {
+      return labels[0];
+    }
+
+    if (labels.length === 2) {
+      return labels[0] + " et " + labels[1];
+    }
+
+    return labels.slice(0, -1).join(", ") + " et " + labels[labels.length - 1];
+  }
+
+  function explainClue(puzzle, clue) {
+    var presentItems = clue.guess.filter(function (item) {
+      return puzzle.secret.indexOf(item) !== -1;
+    });
+    var wellPlacedItems = clue.guess.filter(function (item, index) {
+      return puzzle.secret[index] === item;
+    });
+    var misplacedItems = presentItems.filter(function (item) {
+      return wellPlacedItems.indexOf(item) === -1;
+    });
+    var nounPlural = puzzle.mode === "numbers" ? "chiffres" : "couleurs";
+    var nounSingular = puzzle.mode === "numbers" ? "chiffre" : "couleur";
+
+    if (!presentItems.length) {
+      return "Aucun " + nounSingular + " de cette ligne n'etait present dans le code.";
+    }
+
+    return (
+      "Les " +
+      nounPlural +
+      " corrects etaient " +
+      formatItemsList(puzzle, presentItems) +
+      ". Bien places : " +
+      formatItemsList(puzzle, wellPlacedItems) +
+      ". Mal places : " +
+      formatItemsList(puzzle, misplacedItems) +
+      "."
+    );
+  }
+
+  function renderRevealItems(puzzle) {
+    return (
+      '<div class="thecode-game__reveal-list">' +
+      puzzle.clues
+        .map(function (clue) {
+          return (
+            '<article class="thecode-game__reveal-item">' +
+            '<p class="thecode-game__reveal-item-title">' +
+            escapeHtml(formatGuessInline(puzzle, clue.guess)) +
+            "</p>" +
+            '<p class="thecode-game__reveal-item-text">' +
+            escapeHtml(explainClue(puzzle, clue)) +
+            "</p>" +
+            "</article>"
+          );
+        })
+        .join("") +
+      "</div>"
+    );
+  }
+
   function buildMarkup(puzzle) {
     return (
       '<section class="thecode-game__card" data-tcg-mode="' +
@@ -515,12 +612,20 @@
       '<div class="thecode-game__answer-card">' +
       '<p class="thecode-game__answer-title">A toi de jouer</p>' +
       '<p class="thecode-game__answer-subtitle">Trouve la combinaison exacte puis verifie ta reponse.</p>' +
+      '<p class="thecode-game__attempts" data-role="attempts">' +
+      attemptsLabel(MAX_ATTEMPTS) +
+      "</p>" +
       renderAnswerInputs(puzzle) +
       '<div class="thecode-game__actions">' +
       '<button class="thecode-game__button thecode-game__button--primary" type="button" data-action="check">Verifier</button>' +
       '<button class="thecode-game__button thecode-game__button--secondary" type="button" data-action="reset">Nouvelle enigme</button>' +
       "</div>" +
       '<p class="thecode-game__feedback" aria-live="polite"></p>' +
+      '<div class="thecode-game__reveal" data-role="reveal" hidden>' +
+      '<p class="thecode-game__reveal-title">Solution</p>' +
+      '<p class="thecode-game__reveal-solution"></p>' +
+      renderRevealItems(puzzle) +
+      "</div>" +
       "</div>" +
       "</aside>" +
       "</div>" +
@@ -541,6 +646,58 @@
     if (tone) {
       feedback.classList.add(tone === "success" ? "is-success" : "is-error");
     }
+  }
+
+  function setAttempts(container, remaining) {
+    var node = container.querySelector('[data-role="attempts"]');
+
+    if (!node) {
+      return;
+    }
+
+    node.textContent = attemptsLabel(remaining);
+    node.classList.toggle("is-empty", remaining <= 0);
+  }
+
+  function setInputsDisabled(container, disabled) {
+    Array.prototype.forEach.call(
+      container.querySelectorAll(".thecode-game__input, .thecode-game__color-slot"),
+      function (element) {
+        if (disabled) {
+          element.setAttribute("disabled", "disabled");
+          element.setAttribute("aria-disabled", "true");
+        } else {
+          element.removeAttribute("disabled");
+          element.removeAttribute("aria-disabled");
+        }
+      }
+    );
+  }
+
+  function setCheckDisabled(container, disabled) {
+    var checkButton = container.querySelector('[data-action="check"]');
+
+    if (!checkButton) {
+      return;
+    }
+
+    if (disabled) {
+      checkButton.setAttribute("disabled", "disabled");
+    } else {
+      checkButton.removeAttribute("disabled");
+    }
+  }
+
+  function revealSolution(container, puzzle) {
+    var reveal = container.querySelector('[data-role="reveal"]');
+    var solution = container.querySelector(".thecode-game__reveal-solution");
+
+    if (!reveal || !solution) {
+      return;
+    }
+
+    solution.textContent = "Le code etait : " + formatSecret(puzzle) + ".";
+    reveal.hidden = false;
   }
 
   function setupNumberInputs(container) {
@@ -641,6 +798,7 @@
     var puzzle = container.__theCodeGame.puzzle;
     var checkButton = container.querySelector('[data-action="check"]');
     var resetButton = container.querySelector('[data-action="reset"]');
+    var gameState = container.__theCodeGame;
 
     if (puzzle.mode === "numbers") {
       setupNumberInputs(container);
@@ -649,8 +807,15 @@
     }
 
     checkButton.addEventListener("click", function () {
-      var answer = collectAnswer(container, puzzle);
-      var missing = answer.some(function (value) {
+      var answer;
+      var missing;
+
+      if (gameState.isFinished) {
+        return;
+      }
+
+      answer = collectAnswer(container, puzzle);
+      missing = answer.some(function (value) {
         return !value;
       });
 
@@ -671,6 +836,10 @@
       }
 
       if (arraysEqual(answer, puzzle.secret)) {
+        gameState.isFinished = true;
+        setCheckDisabled(container, true);
+        setInputsDisabled(container, true);
+        setAttempts(container, MAX_ATTEMPTS - gameState.attemptsUsed);
         setFeedback(
           container,
           "Bravo, tu as trouve le code : " + formatSecret(puzzle) + ".",
@@ -679,7 +848,28 @@
         return;
       }
 
-      setFeedback(container, "Ce n'est pas la bonne combinaison. Reessaie.", "error");
+      gameState.attemptsUsed += 1;
+      setAttempts(container, MAX_ATTEMPTS - gameState.attemptsUsed);
+
+      if (gameState.attemptsUsed >= MAX_ATTEMPTS) {
+        gameState.isFinished = true;
+        setCheckDisabled(container, true);
+        setInputsDisabled(container, true);
+        revealSolution(container, puzzle);
+        setFeedback(
+          container,
+          "Trois essais utilises. La solution et les explications s'affichent ci-dessous.",
+          "error"
+        );
+        return;
+      }
+
+      setFeedback(
+        container,
+        "Ce n'est pas la bonne combinaison. " +
+          attemptsLabel(MAX_ATTEMPTS - gameState.attemptsUsed),
+        "error"
+      );
     });
 
     resetButton.addEventListener("click", function () {
@@ -694,6 +884,8 @@
 
       container.innerHTML = buildMarkup(puzzle);
       container.__theCodeGame = {
+        attemptsUsed: 0,
+        isFinished: false,
         puzzle: puzzle
       };
 

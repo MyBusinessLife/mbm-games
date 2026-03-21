@@ -222,6 +222,18 @@
   line-height: 1.45;
 }
 
+.thecode-game__attempts {
+  margin: 0 0 14px;
+  color: var(--tcg-accent-strong);
+  font-size: 0.92rem;
+  font-weight: 800;
+  line-height: 1.4;
+}
+
+.thecode-game__attempts.is-empty {
+  color: var(--tcg-error);
+}
+
 .thecode-game__answer-inputs {
   display: flex;
   gap: 10px;
@@ -257,6 +269,11 @@
   box-shadow: 0 0 0 5px rgba(126, 179, 143, 0.12);
 }
 
+.thecode-game__input[disabled] {
+  opacity: 0.58;
+  cursor: not-allowed;
+}
+
 .thecode-game__color-slot {
   display: inline-flex;
   flex-direction: column;
@@ -279,6 +296,13 @@
   transform: translateY(-2px);
   box-shadow: 0 0 0 5px rgba(126, 179, 143, 0.12);
   outline: none;
+}
+
+.thecode-game__color-slot[disabled] {
+  opacity: 0.58;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }
 
 .thecode-game__color-slot-name {
@@ -358,6 +382,13 @@
   color: var(--tcg-accent-strong);
 }
 
+.thecode-game__button[disabled] {
+  opacity: 0.48;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
 .thecode-game__feedback {
   min-height: 1.5em;
   margin: 14px 0 0;
@@ -372,6 +403,59 @@
 
 .thecode-game__feedback.is-error {
   color: var(--tcg-error);
+}
+
+.thecode-game__reveal {
+  margin-top: 18px;
+  padding: 16px;
+  border-radius: 18px;
+  background: rgba(126, 179, 143, 0.08);
+  border: 1px solid rgba(126, 179, 143, 0.18);
+}
+
+.thecode-game__reveal[hidden] {
+  display: none;
+}
+
+.thecode-game__reveal-title {
+  margin: 0 0 8px;
+  font-size: 0.92rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--tcg-accent-strong);
+}
+
+.thecode-game__reveal-solution {
+  margin: 0 0 14px;
+  font-size: 1rem;
+  font-weight: 800;
+  line-height: 1.45;
+}
+
+.thecode-game__reveal-list {
+  display: grid;
+  gap: 10px;
+}
+
+.thecode-game__reveal-item {
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.86);
+  border: 1px solid rgba(126, 179, 143, 0.16);
+}
+
+.thecode-game__reveal-item-title {
+  margin: 0 0 6px;
+  font-size: 0.95rem;
+  font-weight: 800;
+}
+
+.thecode-game__reveal-item-text {
+  margin: 0;
+  color: var(--tcg-muted);
+  font-size: 0.9rem;
+  line-height: 1.45;
 }
 
 .thecode-game__sr-only {
