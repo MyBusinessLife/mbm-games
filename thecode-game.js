@@ -374,7 +374,7 @@
       }
     }
 
-    throw new Error("Impossible de generer une enigme unique.");
+    throw new Error("Impossible de générer une énigme unique.");
   }
 
   function renderGuess(puzzle, clue) {
@@ -527,17 +527,18 @@
     var nounSingular = puzzle.mode === "numbers" ? "chiffre" : "couleur";
 
     if (!presentItems.length) {
-      return "Aucun " + nounSingular + " de cette ligne n'etait present dans le code.";
+      return "Aucun " + nounSingular + " de cette ligne n'était présent dans le code.";
     }
 
     return (
       "Les " +
       nounPlural +
-      " corrects etaient " +
+      " " +
+      (puzzle.mode === "numbers" ? "corrects étaient " : "correctes étaient ") +
       formatItemsList(puzzle, presentItems) +
-      ". Bien places : " +
+      ". Bien placés : " +
       formatItemsList(puzzle, wellPlacedItems) +
-      ". Mal places : " +
+      ". Mal placés : " +
       formatItemsList(puzzle, misplacedItems) +
       "."
     );
@@ -574,7 +575,7 @@
       escapeHtml(puzzle.config.label) +
       "</div>" +
       '<h2 class="thecode-game__title">The code</h2>' +
-      '<p class="thecode-game__subtitle">Un mini-jeu genere aleatoirement a chaque chargement, resolvable uniquement avec les indices affiches.</p>' +
+      '<p class="thecode-game__subtitle">Un mini-jeu généré aléatoirement à chaque chargement, résolvable uniquement avec les indices affichés.</p>' +
       "</div>" +
       '<div class="thecode-game__layout">' +
       '<div class="thecode-game__clues">' +
@@ -610,15 +611,15 @@
       "</svg>" +
       "</div>" +
       '<div class="thecode-game__answer-card">' +
-      '<p class="thecode-game__answer-title">A toi de jouer</p>' +
-      '<p class="thecode-game__answer-subtitle">Trouve la combinaison exacte puis verifie ta reponse.</p>' +
+      '<p class="thecode-game__answer-title">À toi de jouer</p>' +
+      '<p class="thecode-game__answer-subtitle">Trouve la combinaison exacte puis vérifie ta réponse.</p>' +
       '<p class="thecode-game__attempts" data-role="attempts">' +
       attemptsLabel(MAX_ATTEMPTS) +
       "</p>" +
       renderAnswerInputs(puzzle) +
       '<div class="thecode-game__actions">' +
       '<button class="thecode-game__button thecode-game__button--primary" type="button" data-action="check">Verifier</button>' +
-      '<button class="thecode-game__button thecode-game__button--secondary" type="button" data-action="reset">Nouvelle enigme</button>' +
+      '<button class="thecode-game__button thecode-game__button--secondary" type="button" data-action="reset">Nouvelle énigme</button>' +
       "</div>" +
       '<p class="thecode-game__feedback" aria-live="polite"></p>' +
       '<div class="thecode-game__reveal" data-role="reveal" hidden>' +
@@ -696,7 +697,7 @@
       return;
     }
 
-    solution.textContent = "Le code etait : " + formatSecret(puzzle) + ".";
+    solution.textContent = "Le code était : " + formatSecret(puzzle) + ".";
     reveal.hidden = false;
   }
 
@@ -820,7 +821,7 @@
       });
 
       if (missing) {
-        setFeedback(container, "Complete toutes les cases avant de verifier.", "error");
+        setFeedback(container, "Complète toutes les cases avant de vérifier.", "error");
         return;
       }
 
@@ -858,7 +859,7 @@
         revealSolution(container, puzzle);
         setFeedback(
           container,
-          "Trois essais utilises. La solution et les explications s'affichent ci-dessous.",
+          "Trois essais utilisés. La solution et les explications s'affichent ci-dessous.",
           "error"
         );
         return;
@@ -892,7 +893,7 @@
       attachEvents(container, preferredMode || container.getAttribute("data-mode"));
     } catch (error) {
       container.innerHTML =
-        "<section class='thecode-game__card'><p class='thecode-game__clue-text'>Le jeu n'a pas pu se charger. Recharge la page pour generer une nouvelle enigme.</p></section>";
+        "<section class='thecode-game__card'><p class='thecode-game__clue-text'>Le jeu n'a pas pu se charger. Recharge la page pour générer une nouvelle énigme.</p></section>";
       if (window.console && typeof window.console.error === "function") {
         window.console.error(error);
       }
