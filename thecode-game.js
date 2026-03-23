@@ -565,6 +565,49 @@
     );
   }
 
+  function introModeMessage(preferredMode) {
+    var value = (preferredMode || "random").toLowerCase().trim();
+
+    if (value === "numbers" || value === "chiffres") {
+      return "Cette partie utilisera 4 chiffres différents.";
+    }
+
+    if (value === "colors" || value === "couleurs") {
+      return "Cette partie utilisera 3 couleurs différentes.";
+    }
+
+    return "Le mode chiffres ou couleurs sera tiré au sort au démarrage.";
+  }
+
+  function buildIntroMarkup(preferredMode) {
+    return (
+      '<section class="thecode-game__card thecode-game__card--intro">' +
+      '<div class="thecode-game__intro">' +
+      '<div class="thecode-game__eyebrow">Mini-jeu</div>' +
+      '<h2 class="thecode-game__title">The code</h2>' +
+      '<p class="thecode-game__subtitle">Déduis le bon code à partir des indices. Observe, compare et trouve la seule combinaison possible.</p>' +
+      '<div class="thecode-game__intro-panel">' +
+      '<p class="thecode-game__intro-title">Règles du jeu</p>' +
+      '<ul class="thecode-game__intro-rules">' +
+      "<li>Lis chaque indice avec attention : il te dit combien de symboles sont corrects et s'ils sont bien ou mal placés.</li>" +
+      "<li>Tous les symboles du code sont différents.</li>" +
+      "<li>Tu as seulement " +
+      MAX_ATTEMPTS +
+      " essais pour trouver la bonne combinaison.</li>" +
+      "<li>Après le troisième essai raté, la solution et les explications détaillées s'affichent.</li>" +
+      "</ul>" +
+      '<p class="thecode-game__intro-note">' +
+      escapeHtml(introModeMessage(preferredMode)) +
+      "</p>" +
+      '<div class="thecode-game__intro-actions">' +
+      '<button class="thecode-game__button thecode-game__button--primary" type="button" data-action="start">Prêt à démarrer</button>' +
+      "</div>" +
+      "</div>" +
+      "</div>" +
+      "</section>"
+    );
+  }
+
   function buildMarkup(puzzle) {
     return (
       '<section class="thecode-game__card" data-tcg-mode="' +
@@ -618,7 +661,7 @@
       "</p>" +
       renderAnswerInputs(puzzle) +
       '<div class="thecode-game__actions">' +
-      '<button class="thecode-game__button thecode-game__button--primary" type="button" data-action="check">Verifier</button>' +
+      '<button class="thecode-game__button thecode-game__button--primary" type="button" data-action="check">Vérifier</button>' +
       '<button class="thecode-game__button thecode-game__button--secondary" type="button" data-action="reset">Nouvelle énigme</button>' +
       "</div>" +
       '<p class="thecode-game__feedback" aria-live="polite"></p>' +
@@ -874,11 +917,11 @@
     });
 
     resetButton.addEventListener("click", function () {
-      mount(container, forcedMode);
+      mountGame(container, forcedMode);
     });
   }
 
-  function mount(container, preferredMode) {
+  function mountGame(container, preferredMode) {
     try {
       var mode = normalizeMode(preferredMode || container.getAttribute("data-mode"));
       var puzzle = generatePuzzle(mode);
@@ -898,6 +941,23 @@
         window.console.error(error);
       }
     }
+  }
+
+  function mountIntro(container, preferredMode) {
+    var startButton;
+
+    container.innerHTML = buildIntroMarkup(preferredMode);
+    startButton = container.querySelector('[data-action="start"]');
+
+    if (startButton) {
+      startButton.addEventListener("click", function () {
+        mountGame(container, preferredMode);
+      });
+    }
+  }
+
+  function mount(container, preferredMode) {
+    mountIntro(container, preferredMode || container.getAttribute("data-mode"));
   }
 
   function mountAll() {
@@ -922,6 +982,7 @@
 
   window.TheCodeGame = {
     createPuzzle: generatePuzzle,
+    mountGame: mountGame,
     mount: mount,
     mountAll: safeMountAll
   };
