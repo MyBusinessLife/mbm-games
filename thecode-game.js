@@ -18,6 +18,8 @@
 
   var NUMBER_POOL = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"];
   var MAX_ATTEMPTS = 3;
+  var ROUND_SECONDS = 150;
+  var START_COUNTDOWN_SECONDS = 3;
 
   function buildPermutations(items, length) {
     var results = [];
@@ -481,6 +483,18 @@
     );
   }
 
+  function timerLabel(remainingSeconds) {
+    var minutes = Math.floor(remainingSeconds / 60);
+    var seconds = remainingSeconds % 60;
+
+    return (
+      "Temps : " +
+      String(minutes).padStart(2, "0") +
+      ":" +
+      String(seconds).padStart(2, "0")
+    );
+  }
+
   function formatGuessInline(puzzle, guess) {
     if (puzzle.mode === "numbers") {
       return guess.join("");
@@ -591,9 +605,11 @@
       '<ul class="thecode-game__intro-rules">' +
       "<li>Lis chaque indice avec attention : il te dit combien de symboles sont corrects et s'ils sont bien ou mal placés.</li>" +
       "<li>Tous les symboles du code sont différents.</li>" +
+      "<li>Quand tu cliques sur démarrer, un décompte 3-2-1 se lance avant l'ouverture de la partie.</li>" +
       "<li>Tu as seulement " +
       MAX_ATTEMPTS +
       " essais pour trouver la bonne combinaison.</li>" +
+      "<li>Tu disposes de 2 min 30 pour gagner la partie.</li>" +
       "<li>Après le troisième essai raté, la solution et les explications détaillées s'affichent.</li>" +
       "</ul>" +
       '<p class="thecode-game__intro-note">' +
@@ -602,6 +618,21 @@
       '<div class="thecode-game__intro-actions">' +
       '<button class="thecode-game__button thecode-game__button--primary" type="button" data-action="start">Prêt à démarrer</button>' +
       "</div>" +
+      "</div>" +
+      "</div>" +
+      "</section>"
+    );
+  }
+
+  function buildCountdownMarkup() {
+    return (
+      '<section class="thecode-game__card thecode-game__card--intro">' +
+      '<div class="thecode-game__intro thecode-game__intro--countdown">' +
+      '<div class="thecode-game__eyebrow">Préparation</div>' +
+      '<h2 class="thecode-game__title">C\'est parti...</h2>' +
+      '<p class="thecode-game__subtitle">Observe bien le compte à rebours, la partie démarre juste après.</p>' +
+      '<div class="thecode-game__countdown" data-role="countdown">' +
+      START_COUNTDOWN_SECONDS +
       "</div>" +
       "</div>" +
       "</section>"
@@ -656,9 +687,14 @@
       '<div class="thecode-game__answer-card">' +
       '<p class="thecode-game__answer-title">À toi de jouer</p>' +
       '<p class="thecode-game__answer-subtitle">Trouve la combinaison exacte puis vérifie ta réponse.</p>' +
+      '<div class="thecode-game__status-bar">' +
       '<p class="thecode-game__attempts" data-role="attempts">' +
       attemptsLabel(MAX_ATTEMPTS) +
       "</p>" +
+      '<p class="thecode-game__timer" data-role="timer">' +
+      timerLabel(ROUND_SECONDS) +
+      "</p>" +
+      "</div>" +
       renderAnswerInputs(puzzle) +
       '<div class="thecode-game__actions">' +
       '<button class="thecode-game__button thecode-game__button--primary" type="button" data-action="check">Vérifier</button>' +
@@ -703,6 +739,37 @@
     node.classList.toggle("is-empty", remaining <= 0);
   }
 
+  function setTimer(container, remainingSeconds) {
+    var node = container.querySelector('[data-role="timer"]');
+
+    if (!node) {
+      return;
+    }
+
+    node.textContent = timerLabel(Math.max(remainingSeconds, 0));
+    node.classList.toggle("is-empty", remainingSeconds <= 0);
+    node.classList.toggle(
+      "is-warning",
+      remainingSeconds > 0 && remainingSeconds <= 30
+    );
+  }
+
+  function clearRuntime(container) {
+    if (!container || !container.__theCodeGame) {
+      return;
+    }
+
+    if (container.__theCodeGame.startCountdownId) {
+      clearInterval(container.__theCodeGame.startCountdownId);
+      container.__theCodeGame.startCountdownId = null;
+    }
+
+    if (container.__theCodeGame.roundTimerId) {
+      clearInterval(container.__theCodeGame.roundTimerId);
+      container.__theCodeGame.roundTimerId = null;
+    }
+  }
+
   function setInputsDisabled(container, disabled) {
     Array.prototype.forEach.call(
       container.querySelectorAll(".thecode-game__input, .thecode-game__color-slot"),
@@ -742,6 +809,39 @@
 
     solution.textContent = "Le code était : " + formatSecret(puzzle) + ".";
     reveal.hidden = false;
+  }
+
+  function startRoundTimer(container) {
+    var gameState = container.__theCodeGame;
+
+    if (!gameState) {
+      return;
+    }
+
+    gameState.timeRemaining = ROUND_SECONDS;
+    setTimer(container, gameState.timeRemaining);
+    gameState.roundTimerId = setInterval(function () {
+      if (gameState.isFinished) {
+        clearRuntime(container);
+        return;
+      }
+
+      gameState.timeRemaining -= 1;
+      setTimer(container, gameState.timeRemaining);
+
+      if (gameState.timeRemaining <= 0) {
+        gameState.isFinished = true;
+        clearRuntime(container);
+        setCheckDisabled(container, true);
+        setInputsDisabled(container, true);
+        revealSolution(container, gameState.puzzle);
+        setFeedback(
+          container,
+          "Temps écoulé ! La solution et les explications s'affichent ci-dessous.",
+          "error"
+        );
+      }
+    }, 1000);
   }
 
   function setupNumberInputs(container) {
@@ -881,12 +981,13 @@
 
       if (arraysEqual(answer, puzzle.secret)) {
         gameState.isFinished = true;
+        clearRuntime(container);
         setCheckDisabled(container, true);
         setInputsDisabled(container, true);
         setAttempts(container, MAX_ATTEMPTS - gameState.attemptsUsed);
         setFeedback(
           container,
-          "Bravo, tu as trouve le code : " + formatSecret(puzzle) + ".",
+          "Bravo, tu as trouvé le code : " + formatSecret(puzzle) + ".",
           "success"
         );
         return;
@@ -897,6 +998,7 @@
 
       if (gameState.attemptsUsed >= MAX_ATTEMPTS) {
         gameState.isFinished = true;
+        clearRuntime(container);
         setCheckDisabled(container, true);
         setInputsDisabled(container, true);
         revealSolution(container, puzzle);
@@ -917,7 +1019,7 @@
     });
 
     resetButton.addEventListener("click", function () {
-      mountGame(container, forcedMode);
+      startGameFlow(container, forcedMode);
     });
   }
 
@@ -926,14 +1028,17 @@
       var mode = normalizeMode(preferredMode || container.getAttribute("data-mode"));
       var puzzle = generatePuzzle(mode);
 
+      clearRuntime(container);
       container.innerHTML = buildMarkup(puzzle);
       container.__theCodeGame = {
         attemptsUsed: 0,
         isFinished: false,
+        preferredMode: preferredMode || container.getAttribute("data-mode"),
         puzzle: puzzle
       };
 
       attachEvents(container, preferredMode || container.getAttribute("data-mode"));
+      startRoundTimer(container);
     } catch (error) {
       container.innerHTML =
         "<section class='thecode-game__card'><p class='thecode-game__clue-text'>Le jeu n'a pas pu se charger. Recharge la page pour générer une nouvelle énigme.</p></section>";
@@ -946,14 +1051,43 @@
   function mountIntro(container, preferredMode) {
     var startButton;
 
+    clearRuntime(container);
     container.innerHTML = buildIntroMarkup(preferredMode);
     startButton = container.querySelector('[data-action="start"]');
 
     if (startButton) {
       startButton.addEventListener("click", function () {
-        mountGame(container, preferredMode);
+        startGameFlow(container, preferredMode);
       });
     }
+  }
+
+  function startGameFlow(container, preferredMode) {
+    var countdownValue;
+    var remaining = START_COUNTDOWN_SECONDS;
+
+    clearRuntime(container);
+    container.innerHTML = buildCountdownMarkup();
+    container.__theCodeGame = {
+      preferredMode: preferredMode || container.getAttribute("data-mode"),
+      roundTimerId: null,
+      startCountdownId: null
+    };
+    countdownValue = container.querySelector('[data-role="countdown"]');
+
+    container.__theCodeGame.startCountdownId = setInterval(function () {
+      remaining -= 1;
+
+      if (remaining <= 0) {
+        clearRuntime(container);
+        mountGame(container, preferredMode);
+        return;
+      }
+
+      if (countdownValue) {
+        countdownValue.textContent = String(remaining);
+      }
+    }, 1000);
   }
 
   function mount(container, preferredMode) {
